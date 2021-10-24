@@ -5,3 +5,4 @@ plotly_express
 plotnine
 scipy
 pingouin
+statistics

@@ -7,7 +7,7 @@ import numpy as np
 from plotnine import *
 import pingouin as pg
 import statistics as stats
-import researchpy as rp
+
 
 def app():
     # title of the app
