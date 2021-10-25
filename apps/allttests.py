@@ -18,7 +18,7 @@ def app():
         with c1:
             gs_URL = st.text_input("Public Google Sheet URL:","https://docs.google.com/spreadsheets/d/1Fx7f6rM5Ce331F9ipsEMn-xRjUKYiR3R_v9IDBusUUY/edit#gid=0") 
             googleSheetId = gs_URL.split("spreadsheets/d/")[1].split("/edit")[0]
-            worksheetName = st.text_input("Sheet Name:","Sheet5")
+            worksheetName = st.text_input("Sheet Name:","Bivariate")
             URL = f'https://docs.google.com/spreadsheets/d/{googleSheetId}/gviz/tq?tqx=out:csv&sheet={worksheetName}'
             #@st.cache (ttl = 600)
             def upload_gs(x):
@@ -114,7 +114,7 @@ def app():
         with c1:
             gs_URL = st.text_input("Public Google Sheet URL:","https://docs.google.com/spreadsheets/d/1Fx7f6rM5Ce331F9ipsEMn-xRjUKYiR3R_v9IDBusUUY/edit#gid=0") 
             googleSheetId = gs_URL.split("spreadsheets/d/")[1].split("/edit")[0]
-            worksheetName = st.text_input("Sheet Name:","Sheet5")
+            worksheetName = st.text_input("Sheet Name:","Paired")
             URL = f'https://docs.google.com/spreadsheets/d/{googleSheetId}/gviz/tq?tqx=out:csv&sheet={worksheetName}'
             #@st.cache (ttl = 600)
             def upload_gs(x):
@@ -214,7 +214,7 @@ def app():
         with c1:
             gs_URL = st.text_input("Public Google Sheet URL:","https://docs.google.com/spreadsheets/d/1Fx7f6rM5Ce331F9ipsEMn-xRjUKYiR3R_v9IDBusUUY/edit#gid=0") 
             googleSheetId = gs_URL.split("spreadsheets/d/")[1].split("/edit")[0]
-            worksheetName = st.text_input("Sheet Name:","Sheet7")
+            worksheetName = st.text_input("Sheet Name:","Bivariate")
             URL = f'https://docs.google.com/spreadsheets/d/{googleSheetId}/gviz/tq?tqx=out:csv&sheet={worksheetName}'
             #@st.cache (ttl = 600)
             def upload_gs(x):
@@ -228,46 +228,39 @@ def app():
             #global non_numeric_columns
             numeric_columns = list(df.select_dtypes(['float', 'int']).columns)
             non_numeric_columns = list(df.select_dtypes(['object']).columns)
-            non_numeric_columns.append(None)
-            non_numeric_columns.reverse()
             st.sidebar.subheader("Two Sample Data")
-            q1 = st.sidebar.selectbox('Set 1 Data', options=numeric_columns)
-            q2 = st.sidebar.selectbox('Set 2 Data', options=numeric_columns)
-            cat = st.sidebar.selectbox('Categorical Data', options=non_numeric_columns)
+            quant = st.sidebar.selectbox('Common Variable', options=numeric_columns)
+            cat = st.sidebar.selectbox('Category', options=non_numeric_columns)
+            allcat = list(df[cat].unique())
+            g1 = st.sidebar.selectbox('Group 1',options=allcat) 
+            g2 = st.sidebar.selectbox('Group 2',options=allcat) 
             st.dataframe(df.assign(hack='').set_index('hack')) 
-        if q1 == q2:
+        if g1 == g2:
             with c2:
-                st.warning('Make set 1 and set 2 different')
-        if q1 != q2:
+                st.warning('Select different Groups')
+        if g1 != g2:
             with c2:
+                sdf = df[[cat,quant]]
+                groups = [g1,g2]
+                fsdf = sdf[sdf[cat].isin(groups)]
+                st.markdown(f"Quantity: {quant}")
+                st.markdown(f"Category: {cat}")   
+                st.markdown(f"Group 1: {g1}")  
+                st.markdown(f"Group 1: {g2}")
+                st.dataframe(fsdf.groupby(cat).describe().T)
                 
-                if cat != None:
-                    allcat = list(df[cat].unique())
-                    cat1 = st.sidebar.selectbox('Category',options=allcat) 
-                    sdf = df[[q1,q2,cat]]
-                    fsdf = sdf[sdf[cat]==cat1]
-                    st.markdown(f"Set 1: {q1}")
-                    st.markdown(f"Set 2: {q2}")
-                    st.markdown(f"Category: {cat}")   
-                    st.markdown(f"Variable: {cat1}")  
-                    st.dataframe(fsdf.describe())
-                if cat == None:
-                    fsdf = df[[q1,q2]]
-                    st.markdown(f"Set 1: {q1}")
-                    st.markdown(f"Set 2: {q2}")
-                    st.markdown(f"Category: {cat}")  
-                    st.write(pd.DataFrame(fsdf.describe()))
-                fsdf=pd.DataFrame(fsdf)
             with c3:
-                p = pg.qqplot(fsdf[q1], dist='norm')
+                gp1 = fsdf[fsdf[cat]==g1][quant]
+                p = pg.qqplot(gp1, dist='norm')
                 st.pyplot(ggplot.draw(p))
-                shap1 = scipy.stats.shapiro(fsdf[q1].dropna(axis=0, how="all"))
+                shap1 = scipy.stats.shapiro(gp1)
                 st.write("Shapiro p-Value: " + str(shap1[1]))
                 
             with c4:
-                p = pg.qqplot(fsdf[q2], dist='norm')
+                gp2 = fsdf[fsdf[cat]==g2][quant]
+                p = pg.qqplot(gp2, dist='norm')
                 st.pyplot(ggplot.draw(p))
-                shap2 = scipy.stats.shapiro(fsdf[q2].dropna(axis=0, how="all"))
+                shap2 = scipy.stats.shapiro(gp2)
                 st.write("Shapiro p-Value: " + str(shap2[1]))
             
             
@@ -280,18 +273,19 @@ def app():
                 ev = st.checkbox("Equal Variances")
                 
             with d2:
-                st.write("set 1 - set 2")
+                st.write(cat+": "+g1+"-"+g2+ " "+ quant)
 
-                sfsdf = pd.DataFrame(fsdf.describe())
-                n1 = sfsdf[q1].iloc[0]
-                n2 = sfsdf[q2].iloc[0]
-                sd1 = sfsdf[q1].iloc[2]
-                sd2 = sfsdf[q2].iloc[2]
+                sfsdf = pd.DataFrame(fsdf.groupby(cat).describe().T)
+                
+                n1 = sfsdf[g1].iloc[0]
+                n2 = sfsdf[g2].iloc[0]
+                sd1 = sfsdf[g1].iloc[2]
+                sd2 = sfsdf[g2].iloc[2]
                 
                 se1 = sd1/math.sqrt(n1)
                 se2 = sd2/math.sqrt(n2)
                 sem = math.sqrt(se1**2+se2**2)
-                xbard = sfsdf[q1].iloc[1]-sfsdf[q2].iloc[1]
+                xbard = sfsdf[g1].iloc[1]-sfsdf[g2].iloc[1]
                 if ev:
                     df = n1+n2-2
                 else:
